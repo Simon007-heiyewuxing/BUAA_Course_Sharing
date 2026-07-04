@@ -1,0 +1,722 @@
+
+## 线性方程组的数值求解
+
+前置知识：（选主元的）高斯消去法、（选主元的）Dolittle分解、Crout分解
+
+### 带状矩阵的Crout三角分解法
+
+一个上半带宽为 $s$，下半带宽为 $r$ 的带状矩阵形似：
+
+$$ \mathbf{A} = 
+\begin{bmatrix}
+  a_{1,1} & \cdots & a_{1,s+1} &           &        &           \\
+   \vdots & \ddots &    \ddots &    \ddots &        &           \\
+a_{r+1,1} & \ddots &    \ddots &    \ddots & \ddots &           \\
+          & \ddots &    \ddots &    \ddots & \ddots & a_{n-s,n} \\
+          &        &    \ddots &    \ddots & \ddots &    \vdots \\ 
+          &        &           & a_{n,n-r} & \cdots &   a_{n,n} \\
+\end{bmatrix}
+$$
+
+> 带状矩阵 $\mathbf{A}$ 具有特殊性，可以减少解方程、三角分解时的计算量. 
+
+若带状矩阵 $\mathbf{A}$ 的前 $n-1$ 阶顺序主子式不为 $0$，则有唯一的分解 $\mathbf{A}=\mathbf{L}\mathbf{U}$，其中 $\mathbf{L}$ 是下半带宽为 $r$ 的单位下三角矩阵，$\mathbf{U}$ 是上半带宽为 $s$ 的上三角矩阵：
+
+$$ \mathbf{A} = \mathbf{L}\mathbf{U} =
+\begin{bmatrix}
+        1 &        &           &           &        &    \\
+   \vdots & \ddots &           &           &        &    \\
+l_{r+1,1} & \ddots &    \ddots &           &        &    \\
+          & \ddots &    \ddots &    \ddots &        &    \\
+          &        &    \ddots &    \ddots & \ddots &    \\ 
+          &        &           & l_{n,n-r} & \cdots &  1 \\
+\end{bmatrix} \begin{bmatrix}
+  u_{1,1} & \cdots & u_{1,s+1} &           &        &           \\
+          & \ddots &    \ddots &    \ddots &        &           \\
+          &        &    \ddots &    \ddots & \ddots &           \\
+          &        &           &    \ddots & \ddots & u_{n-s,n} \\
+          &        &           &           & \ddots &    \vdots \\ 
+          &        &           &           &        &   u_{n,n} \\
+\end{bmatrix}
+$$
+
+**选主元的三角分解由于置换矩阵 $\mathbf{P}$ 的存在，会破坏带状矩阵的特性. **
+
+### 三对角矩阵的追赶法
+
+三对角矩阵是一种特殊的带状矩阵，其上半带宽、下半带宽均为 $1$. 三对角方程组形如 $\mathbf{A}\mathbf{x}=\mathbf{f}$. 
+
+首先，对三对角矩阵进行Crout分解：
+
+$$
+\begin{bmatrix}
+a_1 & b_1 & & \\
+c_2 & a_2 & \ddots & \\
+    & \ddots & \ddots & b_{n-1} \\
+    & & c_n & a_n
+\end{bmatrix} = \begin{bmatrix}
+\alpha_1 &  & & \\
+\gamma_2 & \alpha_2 &  & \\
+    & \ddots & \ddots &  \\
+    & & \gamma _n & \alpha _n
+\end{bmatrix} \begin{bmatrix}
+1 & \beta_1 & & \\
+ & 1 & \ddots & \\
+    &  & 1 &  \beta_{n-1} \\
+    & &  &  1
+\end{bmatrix}
+$$
+
+通过右侧两矩阵相乘并与原矩阵对应，得到如下分解公式：
+
+$$
+\left\{ \begin{aligned}
+\gamma _i & = c_i, & i = 2,\cdots, n \\
+\alpha _i & = a_i - c_i\beta _{i-1}, & i = 1,\cdots, n \\
+\beta _i  &= \frac{b_i}{\alpha _i}, & i = 1,\cdots, n-1
+  \end{aligned}
+\right.
+$$
+
+其中 $c_1=0$，$\beta_n=0$. 
+
+通过分解得到各 $\alpha _i, \beta _i, \gamma _i$ 后，顺序计算 $y_i$ 并逆序计算 $x_i$：
+
+$$
+\left\{ \begin{aligned}
+y_i &= \frac{f_i-c_iy_{i-1}}{\alpha _i}, & i=1,\cdots, n \\
+x_i &= y_i-\beta _i x_{i+1}, & i=n,\cdots, 1
+\end{aligned}
+\right.
+$$
+
+即可得到原三对角线性方程组的解. 
+
+### 最速下降法
+
+最速下降法的“数值格式”、“收敛条件”、“误差估计方法”较为重要. 
+
+首先定义二次泛函 
+
+$$
+\begin{aligned}
+\varphi(\mathbf{x}) &= \frac{1}{2}(\mathbf{A}\mathbf{x},\mathbf{x})-(\mathbf{b},\mathbf{x})\\ 
+&=\frac{1}{2}\mathbf{x}^\mathrm{T}\mathbf{A}\mathbf{x}-\mathbf{x}^\mathrm{T}\mathbf{b}\\
+\end{aligned}
+$$
+
+不难有
+
+$$
+\begin{aligned}
+\nabla\varphi &=\left(\frac{\partial\varphi}{\partial x_1},\frac{\partial\varphi}{\partial x_2},\cdots,\frac{\partial\varphi}{\partial x_n}\right) \\ 
+&= \mathbf{A}\mathbf{x} - \mathbf{b}
+\end{aligned}
+$$
+
+线性方程组 $\mathbf{A}\mathbf{x}=\mathbf{b}$ 的解 $\mathbf{x}^\ast$ 即为二次泛函 $\varphi(\mathbf{x})$ 的最小值. 
+
+在下降过程中，每一步均沿着下降速度最快的方向前进（即负梯度方向），找到 $\varphi(\mathbf{x})$ 的最小值即可得到原方程组的解. 
+
+考虑更新公式 
+
+$$\mathbf{x}^{(k+1)}=\mathbf{x}^{(k)}+\alpha _k r^{(k)}$$
+
+其中 $\alpha _k$ 为第 $k$ 步的步长，$r^{(k)}$ 为负梯度方向 $r^{(k)}=-\mathbf{A}\mathbf{x}^{(k)}+\mathbf{b}$. 
+
+考虑 
+
+$$
+\begin{aligned}
+\varphi(\mathbf{x}^{(k+1)}) &= \varphi(\mathbf{x}^{(k)}+\alpha _k r^{(k)}) \\
+&= \varphi(\mathbf{x}^{(k)}) - \left(\alpha_k(\mathbf{r}^{(k)}, \mathbf{r}^{(k)}) - \frac{\alpha_k^2}{2}(\mathbf{A}\mathbf{r}^{(k)}, \mathbf{r}^{(k)}) \right)
+\end{aligned}
+$$
+
+最小化 $\varphi(\mathbf{x}^{(k+1)})$，即
+
+$$
+\arg \max_{\alpha_k} \left(\alpha_k(\mathbf{r}^{(k)}, \mathbf{r}^{(k)}) - \frac{\alpha_k^2}{2}(\mathbf{A}\mathbf{r}^{(k)}, \mathbf{r}^{(k)})\right)
+$$
+
+得
+
+$$
+\alpha_k = \frac{(\mathbf{r}^{(k)}, \mathbf{r}^{(k)})}{(\mathbf{A}\mathbf{r}^{(k)}, \mathbf{r}^{(k)})}
+$$
+
+#### 最速下降法的数值格式
+
+从而可以得到最速下降法：
+
+1. 取 $x^{(0)}\in \mathbb{R}^n$，$\mathbf{r}^{(0)}=\mathbf{b}-\mathbf{A}\mathbf{x}^{(0)}$;
+2. $k=0, 1, \cdots $;
+3. 计算步长 $ \alpha_k = \frac{(\mathbf{r}^{(k)}, \mathbf{r}^{(k)})}{(\mathbf{A}\mathbf{r}^{(k)}, \mathbf{r}^{(k)})} $;
+4. 更新 $\mathbf{x}^{(k+1)}=\mathbf{x}^{(k)}+\alpha _k \mathbf{r}^{(k)}$;
+5. 计算新方向 $\mathbf{r}^{(k+1)}=\mathbf{b}-\mathbf{A}\mathbf{x}^{(k+1)}=\mathbf{r}^{(k)}-\alpha_k \mathbf{A}\mathbf{r}^{(k)}$
+6. 若 $\frac{\left\| \mathbf{r}^{(k+1)} \right\|}{\left\| \mathbf{r}^{(0)} \right\|} < \varepsilon$，则输出 $\mathbf{x}^\ast=\mathbf{x}^{(k+1)}$，否则转3. 
+
+#### 最速下降法的收敛性
+
+若 $\mathbf{A}$ 对称正定，则有 
+
+$$\lim_{k\to \infty}\mathbf{x}^{(k)}=\mathbf{x}^\ast$$
+
+#### 最速下降法的误差
+
+若最速下降法收敛，且 $\mathbf{A}$ 的特征值为 $\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_n > 0$，则有误差
+
+$$
+\left\| \mathbf{x}^{(k)} - \mathbf{x}^\ast \right\| _{\mathbf{A}} \leq 
+\left(\frac{\lambda_1-\lambda_n}{\lambda_1+\lambda_n}\right)^k\left\| \mathbf{x}^{(0)} -\mathbf{x}^\ast \right\| _{\mathbf{A}}
+$$
+
+### 共轭梯度法
+
+共轭梯度法的“数值格式”、“收敛条件”、“误差估计方法”较为重要. 
+
+#### A-共轭
+
+若 $\mathbf{A}$ 对称正定，$(\mathbf{x}, \mathbf{A}\mathbf{y}) = 0$，则称 $\mathbf{x}$ 和 $\mathbf{y}$ 是A-正交或A-共轭的. 
+
+参考施密特正交化的原理，构造A-共轭向量组 $\mathbf{p}^{(0)},\;\mathbf{p}^{(1)},\cdots,\mathbf{p}^{(n-1)}$. 
+
+首先，取 $\mathbf{\tilde{p}}^{(0)}=\mathbf{r}^{(0)}$，$\mathbf{\tilde{p}}^{(1)}=\mathbf{r}^{(1)}$，有 
+
+$$
+\begin{aligned}
+\mathbf{p}^{(0)} & =\mathbf{\tilde{p}}^{(0)} \\
+\mathbf{p}^{(1)} & =\mathbf{\tilde{p}}^{(1)} - u_{10}\mathbf{p}^{(0)} \\ 
+\mathbf{p}^{(k)} & =\mathbf{\tilde{p}}^{(k)} - \sum_{i=0}^{k-1} u_{ki} \mathbf{p}^{(i)} \\ 
+\end{aligned}
+$$
+
+由A-共轭的定义，有 
+
+$$
+\begin{aligned}
+(\mathbf{p}^{(1)}, \mathbf{A}\mathbf{p}^{(0)}) &= (\mathbf{r}^{(1)} - u_{10}\mathbf{p}^{(0)}, \mathbf{A}\mathbf{p}^{(0)}) \\ 
+&= (\mathbf{r}^{(1)}, \mathbf{A}\mathbf{p}^{(0)}) - u_{10}(\mathbf{p}^{(0)}, \mathbf{A}\mathbf{p}^{(0)}) \\
+&= 0 
+\end{aligned}
+$$
+
+故
+
+$$
+u_{10}=\frac{(\mathbf{r}^{(1)}, \mathbf{A}\mathbf{p}^{(0)})}{(\mathbf{p}^{(0)}, \mathbf{A}\mathbf{p}^{(0)})} 
+$$
+
+其他系数同理. 
+
+综上，得到A-共轭向量组，其中
+
+$$
+\mathbf{p}^{(k)}=\mathbf{r}^{(k)} - \sum_{i=0}^{k-1} \frac{(\mathbf{r}^{(k)}, \mathbf{A}\mathbf{p}^{(i)})}{(\mathbf{p}^{(i)}, \mathbf{A}\mathbf{p}^{(i)})} \mathbf{p}^{(i)}
+$$
+
+#### 共轭梯度法的数值格式
+从而可以得到共轭梯度法：
+
+1. 取 $x^{(0)}\in \mathbb{R}^n$，$\mathbf{r}^{(0)}=\mathbf{p}^{(0)}=\mathbf{b}-\mathbf{A}\mathbf{x}^{(0)}$;
+2. $k=0, 1, \cdots $;
+3. 计算步长 $ \alpha_k = \frac{(\mathbf{r}^{(k)}, \mathbf{r}^{(k)})}{(\mathbf{A}\mathbf{p}^{(k)}, \mathbf{p}^{(k)})} $;
+4. 更新 $\mathbf{x}^{(k+1)}=\mathbf{x}^{(k)}+\alpha _k \mathbf{p}^{(k)}$;
+5. 计算新残差 $r^{(k+1)}=\mathbf{b}-\mathbf{A}\mathbf{x}^{(k+1)}=\mathbf{r}^{(k)}-\alpha_k \mathbf{A}\mathbf{p}^{(k)}$
+6. 若 $\frac{\left\| r^{(k+1)} \right\|}{\left\| r^{(0)} \right\|} < \varepsilon$，则输出 $\mathbf{x}^\ast=\mathbf{x}^{(k+1)}$;
+7. $\beta_k=\frac{(\mathbf{r}^{(k+1)}, \mathbf{r}^{(k+1)})}{(\mathbf{r}^{(k)}, \mathbf{r}^{(k)})}$;
+8. $\mathbf{p}^{(k+1)}=\mathbf{r}^{(k)} + \beta_k\mathbf{p}^{(k)}$，转3. 
+
+#### 共轭梯度法的收敛性
+
+若 $\mathbf{A}$ 对称正定，则共轭梯度法最多 $n$ 步即可找到精确解 $\mathbf{x}^\ast$. 
+
+#### 共轭梯度法的误差
+
+若共轭梯度法收敛，则有误差
+
+$$
+\left\| \mathbf{x}^{(k)} - \mathbf{x}^\ast \right\| _{\mathbf{A}} \leq 
+2\left(\frac{\sqrt{K}-1}{\sqrt{K}+1}\right)^k\left\| \mathbf{x}^{(0)} -\mathbf{x}^\ast \right\| _{\mathbf{A}}
+$$
+
+其中，$K=\kappa_2(\mathbf{A})=\left\|\mathbf{A}\right\|_2\left\|\mathbf{A}^{-1}\right\|_2$. 
+
+## 矩阵特征值和特征向量的计算
+
+### Jacobi法
+
+要求矩阵必须是实对称方阵，优点是可以求所有的特征和对应的特征向量. 
+
+Jacobi方法总是收敛，稳定性好；但会破坏矩阵的原有结构，计算费时（Jacobi方法几乎不太能手算）. 
+
+### QR法
+
+#### Schur分解
+
+有矩阵 $\mathbf{A}\in \mathbb{R}^{n\times n}$，则存在正交矩阵 $\mathbf{Q}\in\mathbb{R}^{n\times n}$，使得
+
+$$
+\mathbf{Q}^{\mathrm{T}}\mathbf{A}\mathbf{Q} = \begin{bmatrix}
+  \mathbf{R}_{11} & \mathbf{R}_{12} & \cdots & \mathbf{R}_{1m} \\
+                  & \mathbf{R}_{22} & \cdots & \mathbf{R}_{2m} \\
+                  &                 & \ddots & \vdots \\
+                  &                 &        & \mathbf{R}_{mm} \\
+\end{bmatrix}
+$$
+
+其中 $\mathbf{R}_{jj}$ 是实数或有一堆共轭特征值的2阶方阵. 
+
+其中，$\mathbf{Q}^{\mathrm{T}}\mathbf{A}\mathbf{Q}$ 称为矩阵 $\mathbf{A}$ 的Schur标准形. 
+
+#### QR分解
+
+若 $\mathbf{A}$ 是 $n$ 阶实方阵，则 $\mathbf{A}$ 可以分解为正交矩阵 $\mathbf{Q}$ 和上三角矩阵 $\mathbf{R}$ 之积. 
+
+利用QR分解求矩阵特征值的方法如下：
+
+1. $\mathbf{A}_1 = \mathbf{A}$;
+2. $k=1,2,\cdots$;
+3. $\mathbf{A}_k = \mathbf{Q}_k\mathbf{R}_k$;
+4. $\mathbf{A}_{k+1}=\mathbf{R}_{k}\mathbf{Q}_k = (\mathbf{Q}_k^{\mathrm{T}}\mathbf{A}\mathbf{Q}_k)$.
+
+#### Householder矩阵
+
+设 $\mathbf{v}$ 为 $n$ 维单位向量，$\mathbf{v}^{\mathrm{T}}\mathbf{v}=1$，可以得到Householder矩阵 $\mathbf{H}=\mathbf{I}-2\mathbf{v}\mathbf{v}^{\mathrm{T}}$. 
+
+Householder矩阵 $\mathbf{H}$ 是正交矩阵. 
+
+有非零向量 $\mathbf{s}$，单位向量 $\mathbf{e}$，存在一个Householder矩阵 $\mathbf{H}$，使得 $\mathbf{H}\mathbf{s}=\alpha \mathbf{e}$，其中 $\alpha\in \mathbb{R}$，$\lvert \alpha\rvert=\sqrt{\mathbf{s}^{\mathrm{T}}\mathbf{s}}$. 
+
+通过构造向量 $\mathbf{v}=\frac{1}{\rho}(\mathbf{s}-\alpha\mathbf{e})$，其中 $\rho=\sqrt{((\mathbf{s}-\alpha\mathbf{e}))^{\mathrm{T}}((\mathbf{s}-\alpha\mathbf{e}))}$
+
+通过Househlder矩阵进行QR分解的流程如下：
+
+1. 令 $\mathbf{s}_1=(a_{11}, a_{12}, \cdots, a_{1n})^{\mathrm{T}}$，$c_1=-\mathrm{sgn}(a_{11})\sqrt{\mathbf{s}_1^{\mathrm{T}}\mathbf{s}_1}$（$a_{11}=0$ 时，$c_1=\sqrt{\mathbf{s}_1^{\mathrm{T}}\mathbf{s}_1}$）;
+2. 取 $\mathbf{u}_1=\mathbf{s}_1-c_1\mathbf{e}_1$，$\mathbf{H}_1=\mathbf{I}-\frac{2\mathbf{u}_1\mathbf{u}_1^{\mathrm{T}}}{\mathbf{u}_1^{\mathrm{T}}\mathbf{u}_1}$;
+3. 此时有 $\mathbf{H}_1\mathbf{s}_1=c_1\mathbf{e}_1=(c_1, 0, \cdots, 0)^{\mathbf{T}}$;
+4. 有 $\mathbf{A}_2=\mathbf{H}_1\mathbf{A}_1= \begin{bmatrix}
+  c_1 & a_{12}^{(2)} & \cdots & a_{1n}^{(2)} \\
+  0   & a_{22}^{(2)} & \cdots & a_{2n}^{(2)} \\
+  \vdots   & \vdots & \ddots & \vdots \\
+  0   & a_{n2}^{(2)} & \cdots & a_{nn}^{(2)} \\
+\end{bmatrix} $;
+5. 若 $a_{i1}=0$（$i=2,3,\cdots, n$）全为0，则取 $\mathbf{H}_1=\mathbf{I}$；
+6. 设 $a_{i2}=0$（$i=3,\cdots, n$）不全为0；
+7. 令 $\mathbf{s}_2=(0, a_{22}^{(2)}, \cdots, a_{2n}^{(2)})^{\mathrm{T}}$，$c_2=-\mathrm{sgn}(a_{22})\sqrt{\mathbf{s}_2^{\mathrm{T}}\mathbf{s}_2}$（$a_{22}=0$ 时，$c_2=\sqrt{\mathbf{s}_2^{\mathrm{T}}\mathbf{s}_2}$）;
+8. 取 $\mathbf{u}_2=\mathbf{s}_2-c_2\mathbf{e}_2$，$\mathbf{H}_2=\mathbf{I}-\frac{2\mathbf{u}_2\mathbf{u}_2^{\mathrm{T}}}{\mathbf{u}_2^{\mathrm{T}}\mathbf{u}_2}$;
+9. 此时有 $\mathbf{H}_2\mathbf{s}_2=c_2\mathbf{e}_2=(0, c_2, \cdots, 0)^{\mathbf{T}}$;
+10. 有 $\mathbf{A}_2=\mathbf{H}_2\mathbf{A}_2= \begin{bmatrix}
+  c_1 & a_{12}^{(2)} & \cdots & a_{1n}^{(2)} \\
+  0   & c_2 & \cdots & a_{2n}^{(3)} \\
+  \vdots   & \vdots & \ddots & \vdots \\
+  0   & 0 & \cdots & a_{nn}^{(3)} \\
+\end{bmatrix} $;
+11. 若 $a_{i2}=0$（$i=3,\cdots, n$）全为0，则取 $\mathbf{H}_2=\mathbf{I}$；
+12. 重复直到 $\mathbf{A}_n=\mathbf{H}_{n-1}\mathbf{H}_{n-2}\cdots\mathbf{H}_1\mathbf{A}$ 是上三角矩阵；
+13. $\mathbf{A}=\mathbf{H}_{1}\mathbf{H}_{2}\cdots\mathbf{H}_{n-1}\mathbf{A}_n$;
+14. 令 $\mathbf{Q}=\mathbf{H}_{1}\mathbf{H}_{2}\cdots\mathbf{H}_{n-1}$，$\mathbf{R}=\mathbf{A}_n$，有 $\mathbf{A}=\mathbf{Q}\mathbf{R}$. 
+
+#### 改进QR法
+
+为了减少QR法大量矩阵相乘带来的计算量提出，利用 $\mathbf{Q}_{r+1}=\mathbf{Q}_r\mathbf{u}_r$ 与 $\mathbf{A}_{r+1}=\mathbf{H}_r\mathbf{A}_r$ 与 $\mathbf{H}$ 的计算公式，将矩阵相乘的迭代过程化为矩阵向量、向量向量乘. 
+
+## 非线性方程和方程组的求解
+
+### Steffensen加速方法
+
+为了加速迭代法的收敛，Steffensen加速方法从 $x_k$ 出发，考虑两次迭代：
+
+$$
+\begin{aligned}
+  x_{k+1} &= \varphi(x_k) \\
+  x_{k+2} &= \varphi(x_{k+1}) \\
+\end{aligned}
+$$
+
+可以得到
+
+$$
+\begin{aligned}
+  x_{k+1} - s &= \varphi(x_k) - \varphi(s) &&= \varphi^\prime(\xi_k)(x_k-s)\\
+  x_{k+2} - s &= \varphi(x_{k+1}) - \varphi(s) &&= \varphi^\prime(\xi_{k+1})(x_{k+1}-s)\\
+\end{aligned}
+$$
+
+考虑 $x$ 在 $s$ 附近，有 $\varphi^\prime(\xi_k)\approx \varphi^\prime(\xi_{k+1})$，有
+
+$$
+\frac{x_{k+1} -s}{x_k-s} \approx \frac{x_{k+2} -s}{x_{k+1}-s}
+$$
+
+故得到
+
+$$
+s\approx x_k - \frac{(x_{k+1} - x_k)^2}{x_{k+2}-2x_{k+1}+x_k}
+$$
+
+记 $y_k=x_{k+1}$，$z_k=x_{k+2}$，有Steffensen加速法：
+
+$$
+\left\{
+\begin{aligned}
+  y_k &= \varphi(x_k)\\
+  z_k &= \varphi(y_k)\\
+  x_{k+1} &= x_k - \frac{(y_k - x_k)^2}{z_k-2y_k+x_k}
+\end{aligned}\right.,k=0,1,\cdots
+$$
+
+设 $s=\varphi(s)$，$\varphi(x)$ 在 $(s-\delta, s+\delta)$ 内有二阶导数，且 $\varphi^\prime(s)\neq 1$，则 $\exists \delta > 0, x_0\in [s-\delta, s+\delta], x_0\neq s$，$\{x_k\}$ 至少二阶收敛到 $s$.
+
+**原迭代发散时，Steffensen方法依旧可能收敛. **
+
+### Newton法
+
+对于非线性方程组
+
+$$
+\left\{
+\begin{aligned}
+  f_1(x_1,x_2,\cdots,x_n)&=0\\
+  f_2(x_1,x_2,\cdots,x_n)&=0\\
+  \vdots&\\
+  f_n(x_1,x_2,\cdots,x_n)&=0\\
+\end{aligned}\right.
+$$
+
+令 $\mathbf{X}=(x_0,x_1,\cdots, x_n)^{\mathrm{T}}$，原方程化为
+
+$$
+F(\mathbf{X})=(f_1(\mathbf{X}), f_2(\mathbf{X}), \cdots, f_n(\mathbf{X}))^{\mathrm{T}} = \mathbf{0}
+$$
+
+函数 $f_i(\mathbf{X})$ 的导数为 $f_i^\prime(\mathbf{X})=\left(\frac{\partial f_i(\mathbf{X})}{\partial x_1}, \frac{\partial f_i(\mathbf{X})}{\partial x_2}, \cdots, \frac{\partial f_i(\mathbf{X})}{\partial x_n}\right)^{\mathrm{T}}$
+
+故有 $F(\mathbf{X})$ 的导数
+
+$$
+F^\prime(\mathbf{X}) = \left[\frac{\partial f_i(\mathbf{X})}{\partial x_j}\right]_{n\times n} = \begin{bmatrix}
+  \frac{\partial f_1(\mathbf{X})}{\partial x_1} & \frac{\partial f_1(\mathbf{X})}{\partial x_2} & \cdots & \frac{\partial f_1(\mathbf{X})}{\partial x_n} \\
+  \frac{\partial f_2(\mathbf{X})}{\partial x_1} & \frac{\partial f_2(\mathbf{X})}{\partial x_2} & \cdots & \frac{\partial f_2(\mathbf{X})}{\partial x_n} \\
+  \vdots & \vdots & \ddots & \vdots \\
+  \frac{\partial f_n(\mathbf{X})}{\partial x_1} & \frac{\partial f_n(\mathbf{X})}{\partial x_2} & \cdots & \frac{\partial f_n(\mathbf{X})}{\partial x_n} \\
+\end{bmatrix}
+$$
+
+若
+
+$$
+\lim_{\mathbf{h}\to \mathbf{0}} \frac{\|F(\mathbf{X}+\mathbf{h}) - F(\mathbf{X}) - \mathbf{A}(\mathbf{X})\mathbf{h}\|}{\|\mathbf{h}\|} = 0
+$$
+
+则称 $F$ 在 $\mathbf{X}$ 处可微，其导数为 $\mathbf{A}(\mathbf{X})$. 
+
+对于非线性方程组的牛顿法，同样考虑Taylor展开：
+
+$$
+f_i(\mathbf{X}) \approx f_i(\mathbf{X}^{(k)}) + \sum_{j=1}^{n}\frac{\partial f_i(\mathbf{X}^{(k)})}{\partial x_j}(x_j - x_j^{(k)}), i=1,2,\cdots, n
+$$
+
+得迭代格式
+
+$$
+\mathbf{X}^{(k+1)} = \mathbf{X}^{(k)} - F^\prime(\mathbf{X}^{(k)})^{-1}F(\mathbf{X}^{(k)})
+$$
+
+为了避免求矩阵的逆，作如下变形：
+
+$$
+F^\prime(\mathbf{X}^{(k)})(\mathbf{X}^{(k+1)} - \mathbf{X}^{(k)}) = - F(\mathbf{X}^{(k)})
+$$
+
+令 $\Delta \mathbf{X}^{(k)} = \mathbf{X}^{(k+1)} - \mathbf{X}^{(k)}$，则每轮迭代只需要解以下方程组：
+
+$$
+F^\prime(\mathbf{X}^{(k)})\Delta \mathbf{X}^{(k)} = - F(\mathbf{X}^{(k)})
+$$
+
+并利用 $\mathbf{X}^{(k+1)} = \mathbf{X}^{(k)} + \Delta \mathbf{X}^{(k)}$ 更新即可. 
+
+若牛顿迭代法解非线性方程组收敛，则其收敛速度至少是超线性的. 
+
+### 离散牛顿法
+
+为了避免对原函数求导，使用
+
+$$
+\frac{\partial f_i}{x_j}=\frac{f_i(\mathbf{X}^{(k)}+\mathbf{h}_i^{(k)}\mathbf{e}_j) - f_i(\mathbf{X}^{(k)})}{\mathbf{h}_i^{(k)}}
+$$
+
+近似 $F^\prime(\mathbf{X}^{(k)})$ 中的元素. 称为离散牛顿法. 
+
+## 函数插值和逼近
+
+### 样条插值
+
+对分划 $\pi: a=x_0<x_1<\cdots<x_{n-1}<x_n = b$，若
+
+$$
+\left\{
+\begin{aligned}
+  &s(x) \text{在每个子区间} [x_i, x_{i+1}] \text{上是次数不高于} k \text{的多项式}; \\
+  &s(x) \text{在} [a,b] \text{上有} k-1 \text{阶连续导数}.
+\end{aligned}\right.
+$$
+
+则 $s(x)$ 是 $k$ 次多项式样条函数. 常取 $k=3$. 
+
+设 $s(x)$ 共 $n$ 个区间，每个区间均是形如 $a_3x^3 + a_2x^2 + a_1x^1 + a0$ 的多项式函数，待定系数共 $4n$ 个. 以下约束可以确定 $4n-2$ 个方程：
+
+1. $s(x)$ 连续，$s_i(x_i)=s_{i-1}(x_i)$ 可提供 $n-1$ 个方程;
+2. $s^\prime(x)$ 连续，$s^\prime_i(x_i)=s^\prime_{i-1}(x_i)$ 可提供 $n-1$ 个方程;
+3. $s^{\prime\prime}(x)$ 连续，$s^{\prime\prime}_i(x_i)=s^{\prime\prime}_{i-1}(x_i)$ 可提供 $n-1$ 个方程;
+4. $n-1$ 个插值节点条件 $s(x_i)=f(x_i)$ 可提供 $n+1$ 个方程;
+
+最后两个条件由边界条件确定. 
+
+1. 给定两个边界的二阶导数. 特别地，如果两个边界的二阶导数均为0，则称为自然样条函数；
+2. 给定两个边界的一阶导数；
+3. $f(x)$ 是以 $x_n-x_0$ 为周期的函数同样可以确定边界条件. 
+
+第一、第二边界条件可以混合使用. 
+
+### 三角插值与傅里叶变换
+
+**以下使用 $i$ 作为虚数单位，$j$ 不是虚数单位. **
+
+取 $\phi=\textrm{span}\{1, \sin x, \cos x, \sin 2x, \cos 2x, \cdots, \sin nx, \cos nx\}$，求 
+
+$$
+s_n(x) = \frac{a_0}{2}+\sum_{j=1}^{n}(a_j\cos jx + b_j \sin jx)
+$$
+
+使
+
+$$
+s_n(x_l)=f(x_l)\quad \left(x_l=\frac{2\pi l}{N}\right)
+$$
+
+由三角函数系的正交性可以得到
+
+$$
+\left\{
+  \begin{aligned}
+    a_j & = \frac{2}{N}\sum_{l=0}^{N-1}f(\frac{2\pi l}{N})\cos j \frac{2\pi l}{N}\\
+    b_j & = \frac{2}{N}\sum_{l=1}^{N-1}f(\frac{2\pi l}{N})\sin j \frac{2\pi l}{N}\\
+  \end{aligned}
+\right.
+$$
+
+### 二元函数插值
+
+$$
+P_{nm}(x, y) = \sum_{k=0}^{n}\sum_{r=0}^{m}l_k(x)\tilde{l}_r(y)f(x_k,y_r)
+$$
+
+其中 $l(\cdot)$ 为Lagrange基函数. 
+
+### 连续函数的最优平方逼近
+
+定义函数的范数：
+
+$$
+\|f-p\|_2 = \sqrt{\int_a^b[f-p]^2\;\mathrm{d}x}
+$$
+
+则 $p_n^\ast\in H_n$，使得
+
+$$
+\|f-p_n^\ast\|_2 = \sqrt{\int_a^b[f-p_n^\ast]^2\;\mathrm{d}x} = \inf_{p\in H_n}\|f-p\|_2
+$$
+
+定义函数的内积：
+
+$$
+(f,g) = \int_a^b\rho(x)f(x)g(x)\;\mathrm{d}x
+$$
+
+其中 $\rho(x)$ 为权函数. 
+
+最优平方逼近即找到 $p^\ast$，使得 $(f-p^\ast, f-p^\ast) = \min_{p\in H_n}(f-p, f-p)$. 
+
+故对于函数系，有
+
+$$
+(f-p^\ast, \varphi_j) = (f, \varphi_j) - \sum_{k=0}^{n}c_k^\ast(\varphi_k, \varphi_j) = 0
+$$
+
+于是有方程
+
+$$
+\begin{bmatrix}
+  (\varphi_0, \varphi_0) & (\varphi_0, \varphi_1) & \cdots & (\varphi_0, \varphi_n) \\
+  (\varphi_1, \varphi_0) & (\varphi_1, \varphi_1) & \cdots & (\varphi_1, \varphi_n) \\
+  \vdots & \vdots & \ddots & \vdots \\
+  (\varphi_n, \varphi_0) & (\varphi_n, \varphi_1) & \cdots & (\varphi_n, \varphi_n) \\
+\end{bmatrix} \begin{bmatrix}
+  c_0^\ast \\
+  c_1^\ast \\
+  \vdots \\ 
+  c_n^\ast \\
+\end{bmatrix} = \begin{bmatrix}
+  (f, \varphi_0) \\
+  (f, \varphi_1) \\
+  \vdots \\
+  (f, \varphi_n) \\
+\end{bmatrix}
+$$
+
+该方程称为法方程或正规方程. 
+
+若 $\varphi_0, \varphi_1, \cdots, \varphi_n$ 相互正交，则有：
+
+$$
+c_j^\ast = \frac{(\varphi_j, f)}{(\varphi_j, \varphi_j)}
+$$
+
+## 数值积分
+
+### Newton-Cotes公式
+
+复化求积法需要格外关注 $n=1,2,4$ 的Newton-Cotes公式：
+
+$n=1$ 的Newton-Cotes公式
+
+$$
+\begin{aligned}
+  \int_{a}^{b}f(x)\;\mathrm{d}x &\approx \frac{b-a}{2}(f(a)+f(b))\\
+  R_1 &= -\frac{(b-a)^3}{12}f^{\prime\prime}(\eta)\\
+\end{aligned}
+$$
+
+$n=2$ 的Newton-Cotes公式
+
+$$
+\begin{aligned}
+  \int_{a}^{b}f(x)\;\mathrm{d}x &\approx \frac{b-a}{6}\left(f(a)+f(b)+4f\left(\frac{a+b}{2}\right)\right)\\
+  R_2 &= -\frac{(b-a)^5}{2880}f^{(4)}(\eta)\\
+\end{aligned}
+$$
+
+$n=4$ 的Newton-Cotes公式
+
+$$
+\begin{aligned}
+  \int_{a}^{b}f(x)\;\mathrm{d}x &\approx \frac{b-a}{90}\left(7f(a)+32f\left(\frac{3a+b}{4}\right)+12f\left(\frac{a+b}{2}\right)+32f\left(\frac{a+3b}{4}\right)+7f(b)\right)\\
+  R_4 &= -\frac{(b-a)^7}{1935360}f^{(6)}(\eta)\\
+\end{aligned}
+$$
+
+### 复化求积法
+
+复化求积法的主要思想是将求积区间划分为一个分划，并对分划上的每一个区间使用求积公式并求和. 复化求积法的余项由原求积法的余项得到，而原求积法的余项可以通过Taylor展开得到. 
+
+取等距节点 $x_k=a+kh$，$h=\frac{b-a}{n}$，复化梯形公式为
+
+$$
+\int_{a}^{b}f(x)\;\mathrm{d}x = \frac{h}{2}\left(f(a)+f(b)+2\sum_{k=1}^{n-1}f(a+kh)\right) - \frac{h^2}{12}(b-a)f^{\prime\prime}(\eta)
+$$
+
+### Richardson外推法
+
+若 $F^\ast-F(h) = a_1h^{p_1} + a_2h^{p_2} + \cdots + a_kh^{p_k} + \cdots = \mathcal{O}(h^{p_1})$，其中 $p_k>p_{k-1}>\cdots>p_1>0$. 
+
+使用 $qh$ 代替 $h$，$q$ 满足 $1-q^{p_1}\neq 0$，有
+
+$$
+F^\ast-F(qh) = a_1(qh)^{p_1} + \cdots + a_k(qh)^{p_k}+\cdots
+$$
+
+与
+
+$$
+q^{p_1}F^\ast-q^{p_1}F(h) = a_1(qh)^{p_1} + a_2q^{p_1}h^{p_2}+ \cdots 
+$$
+
+两式相减，有
+
+$$
+F^\ast = \frac{F(qh)-q^{p_1}F(h)}{1-q^{p_1}} = a_2\frac{q^{p_2}-q^{p_1}}{1-q^{p_1}}h^{p_2} + \cdots = \mathcal{O}(h^{p_2})
+$$
+
+称以上过程为一次外推，记为 
+
+$$
+F_1(h)=\frac{F_0(qh)-q^{p_1}F_0(h)}{1-q^{p_1}}
+$$
+
+### Romberg方法
+
+设 $T(h)=\frac{h}{2}\left(f(a)+f(b)+2\sum_{i=1}^{n-1}f(x_i)\right)$，为复化梯形公式，截断误差为 $\mathcal{O}(h^2)$
+
+Romberg方法为
+
+$$\left\{
+\begin{aligned}
+  T_0(h) &= T(h) \\ 
+  T_k(h) &= \frac{2^{2k}T_{k-1}\left(\frac{h}{2}\right) - T_{k-1}(h)}{2^{2k} - 1}
+\end{aligned}
+\right.
+$$
+
+其中，$T_{k}(h)$ 的截断误差为 $\mathcal{O}(h^{2(k+1)})$. 
+
+此时，$T_1(h)$ 即为复化Simpson公式；$T_2(h)$ 为复化Cotes公式，$T_3(h)$ 为复化Romberg公式. 
+
+## 常微分方程初值问题数值解法
+
+### 线性多步法
+
+线性多步法的一般形式为 
+
+$$
+\sum_{i=0}^{k}\alpha_i y_{n+1} = h\sum_{i=0}^{k}\beta_if_{n+1}
+$$
+
+其中 $\alpha_k=1$. 
+
+若 $\beta_k\neq 0$，则称为隐式格式，否则，称为显式格式. 余项为
+
+$$
+R_{n+k} = \sum_{i=0}^{k}\left(\alpha_i y(x_n+ih) - h\beta_i f(x_{n+i}, y(x_{n+i}))\right)
+$$
+
+可以通过待定系数法构造线性多步法格式，即使用Taylor展开对 $y(x+ih)$ 和 $y^\prime(x+ih)$ 进行展开，并利用余项公式进行计算. 得到
+
+$$
+R =c_0y(x) + c_1hy^\prime(x) + \cdots + c_rh^ry^{(r)}(x) + \cdots 
+$$
+
+并令 $c_i$ 尽可能多为0. 
+
+### 绝对稳定性与绝对稳定域
+
+称线性常系数微分方程
+
+$$
+y^\prime = \lambda y
+$$
+
+为模型方程. 线性多步法解模型方程有：
+
+$$
+\sum_{i=0}^{k}\alpha_i y_{n+1} = \mu \sum_{i=0}^{k}\beta_if_{n+1}, \; \mu = h\lambda
+$$
+
+考虑特征根方程
+
+$$
+\underbrace{\sum_{i=0}^{k}\alpha_i y_{n+1}}_{\rho(\xi)} - \mu \underbrace{\sum_{i=0}^{k}\beta_if_{n+1}}_{\sigma(\xi)} = 0
+$$
+
+若 $\|\xi_1, \xi_2, \cdots\|_{\infty} < 1$，则线性多步法是稳定的. 
+
+可以使用如下定理进行判断：
+
+实系数 $k$ 次代数方程 $\sum_{j=0}^{k}\alpha_j\xi^j = 0(\alpha_k > 0)$ 的所有根按模小于1的必要条件是下列不等式同时成立：
+
+1. $\lvert \alpha_0 \rvert < \alpha_k$;
+2. $\sum_{j=0}^{k}\alpha_j > 0$;
+2. $\sum_{j=0}^{k}(-1)^{k-j}\alpha_j > 0$;
+
+若 $k=2$，则成为充分必要条件. 
